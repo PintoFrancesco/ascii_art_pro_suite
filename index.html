@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ASCII Art Pro Suite - Studio Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        /* --- CSS VARIABLES: GRAYSCALE STUDIO PALETTE --- */
+        :root {
+            --bg-workspace: #0a0a0a;
+            --bg-sidebar: #141414;
+            --bg-panel: #1e1e1e;
+            --bg-panel-hover: #2a2a2a;
+            --border-color: #333333;
+            --border-light: #555555;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --text-active: #ffffff;
+            --radius: 2px; /* Angoli netti e tecnici */
+            --font-stack: 'Roboto', sans-serif;
+        }
+
+        /* --- SCALING AL 75% E RESET BASE --- */
+        html {
+            font-size: 12px; /* Equivale a circa il 75% della dimensione standard web (16px) */
+        }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-workspace); color: var(--text-main);
+            font-family: var(--font-stack); display: flex; height: 100vh; overflow: hidden; flex-direction: row;
+        }
+
+        /* --- SIDEBAR --- */
+        #sidebar {
+            width: 280px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;
+        }
+
+        .sidebar-header {
+            padding: 15px; border-bottom: 1px solid var(--border-color);
+        }
+        .sidebar-header h2 {
+            margin: 0; font-size: 1.2rem; font-weight: 700; letter-spacing: 1px;
+            color: var(--text-active); text-transform: uppercase;
+        }
+
+        .sidebar-content {
+            padding: 10px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 8px;
+        }
+        
+        .sidebar-content::-webkit-scrollbar { width: 4px; }
+        .sidebar-content::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-content::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+        /* --- ACCORDIONS --- */
+        details {
+            background: transparent; border: 1px solid var(--border-color);
+            border-radius: var(--radius); overflow: hidden; flex-shrink: 0;
+        }
+        details[open] { border-color: var(--border-light); }
+        
+        summary {
+            padding: 10px 12px; font-size: 0.85rem; font-weight: 500; text-transform: uppercase;
+            letter-spacing: 0.5px; cursor: pointer; user-select: none;
+            display: flex; justify-content: space-between; align-items: center; color: var(--text-main);
+            background: var(--bg-panel); transition: background 0.2s;
+        }
+        summary:hover { background: var(--bg-panel-hover); color: var(--text-active); }
+        summary::after { content: '+'; font-size: 1.2rem; color: var(--text-muted); font-weight: 300;}
+        details[open] summary::after { content: '−'; }
+        details[open] summary { border-bottom: 1px solid var(--border-color); }
+        
+        .details-content { padding: 12px; display: flex; flex-direction: column; gap: 10px; background: var(--bg-sidebar); }
+
+        /* --- COMPONENTI UI (Form formattazione rigorosa) --- */
+        label { font-size: 0.8rem; font-weight: 400; color: var(--text-muted); display: flex; justify-content: space-between; text-transform: uppercase; letter-spacing: 0.5px; }
+        label span { color: var(--text-active); font-weight: 500; }
+
+        input[type="file"], select, input[type="text"] { 
+            width: 100%; color: var(--text-main); background: transparent; 
+            border: 1px solid var(--border-color); padding: 8px; border-radius: var(--radius); 
+            font-size: 0.85rem; font-family: var(--font-stack); outline: none; transition: border 0.2s;
+            box-sizing: border-box;
+        }
+        input[type="file"]:focus, select:focus, input[type="text"]:focus { border-color: var(--text-muted); }
+        
+        input[type="file"]::file-selector-button { 
+            background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); 
+            padding: 4px 8px; border-radius: var(--radius); cursor: pointer; margin-right: 10px; 
+            font-size: 0.75rem; font-weight: 500; text-transform: uppercase;
+        }
+
+        /* Minimalist Range Sliders */
+        input[type="range"] { -webkit-appearance: none; width: 100%; background: transparent; padding: 5px 0; margin: 0; }
+        input[type="range"]:focus { outline: none; }
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 2px; cursor: pointer; background: var(--border-light); }
+        input[type="range"]::-webkit-slider-thumb {
+            height: 12px; width: 12px; border-radius: 50%; background: var(--text-active);
+            cursor: pointer; -webkit-appearance: none; margin-top: -5px; transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+        .checkbox-container { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; text-transform: uppercase;}
+        .checkbox-container input { width: 12px; height: 12px; cursor: pointer; accent-color: var(--text-active); margin:0;}
+
+        .flex-row { display: flex; gap: 8px; align-items: center; }
+        .flex-row > div { flex: 1; }
+        .flex-row > button { flex: 1; }
+
+        /* --- BOTTONI (Typography e Grayscale) --- */
+        .btn {
+            background-color: transparent; color: var(--text-main); border: 1px solid var(--border-light); 
+            padding: 10px; border-radius: var(--radius); cursor: pointer; font-weight: 500; 
+            width: 100%; font-size: 0.8rem; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px;
+            display: flex; justify-content: center; align-items: center; box-sizing: border-box;
+        }
+        .btn:hover { background-color: var(--text-main); color: var(--bg-workspace); border-color: var(--text-main); }
+        .btn:active { transform: translateY(1px); }
+        
+        .btn-primary { background-color: var(--bg-panel); border-color: var(--border-color); }
+        .btn-primary:hover { background-color: var(--border-light); color: var(--text-active); }
+
+        .btn-danger { background-color: transparent; border-color: #555; color: #999; }
+        .btn-danger:hover { background-color: #333; color: var(--text-active); border-color: var(--text-muted); }
+
+        /* Bottoni Export Footer */
+        .sidebar-footer {
+            padding: 15px; border-top: 1px solid var(--border-color); background: var(--bg-sidebar);
+            display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+        }
+
+        .timeline-box { background: transparent; border: 1px dashed var(--border-color); padding: 10px; border-radius: var(--radius); }
+
+        /* --- WORKSPACE E CANVAS --- */
+        #workspace {
+            flex-grow: 1; display: flex; justify-content: center; align-items: center;
+            background-color: var(--bg-workspace); position: relative; padding: 20px;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        #canvas-container { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+        #canvas-container canvas { 
+            box-shadow: 0 10px 40px rgba(0,0,0,1); border: 1px solid var(--border-color);
+            max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 0; 
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #workspace { height: 40vh; padding: 10px; border-bottom: 1px solid var(--border-color); }
+            #sidebar { width: 100%; height: 60vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        
+        <div class="sidebar-header">
+            <h2>ASCII PRO STUDIO</h2>
+        </div>
+
+        <div class="sidebar-content">
+            
+            <details open>
+                <summary>Source</summary>
+                <div class="details-content">
+                    <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp">
+                    <button class="btn btn-danger" id="btnRimuovi" style="display:none; padding: 6px; font-size: 0.7rem;">Remove Image</button>
+                </div>
+            </details>
+
+            <details>
+                <summary>Typography</summary>
+                <div class="details-content">
+                    <div class="flex-row">
+                        <div>
+                            <label>Font Family</label>
+                            <select id="selFont">
+                                <option value="Impact">Impact</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Arial">Arial</option>
+                                <option value="CUSTOM">Upload...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Weight</label>
+                            <select id="selWeight">
+                                <option value="BOLD">Bold</option>
+                                <option value="NORMAL">Regular</option>
+                            </select>
+                        </div>
+                    </div>
+                    <input type="file" id="fontUpload" accept=".ttf, .otf" style="display:none;">
+                    
+                    <label>Character Set</label>
+                    <select id="selCharset">
+                        <option value="█▓▒░Ñ@#W$9876543210?!abc;:+=-,._  ">Standard Mix</option>
+                        <option value="01 ">Binary</option>
+                        <option value="█▓▒░ ">Solid Blocks</option>
+                        <option value="CUSTOM">Custom Input...</option>
+                    </select>
+                    <input type="text" id="customCharset" value="ARTDIRECTOR " style="display:none;" placeholder="Type here...">
+                    
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="chkRandom"> Static Chaos (Ignore Light)
+                    </label>
+                </div>
+            </details>
+
+            <details open>
+                <summary>Aesthetics</summary>
+                <div class="details-content">
+                    <div>
+                        <label>Contrast <span id="valContrasto">0.43</span></label>
+                        <input type="range" id="slContrasto" min="0.1" max="2.0" step="0.01" value="0.43">
+                    </div>
+                    <div>
+                        <label>Brightness <span id="valLuce">1.4</span></label>
+                        <input type="range" id="slLuce" min="0.5" max="5.0" step="0.1" value="1.4">
+                    </div>
+                    <div>
+                        <label>Resolution <span id="valRes">5px</span></label>
+                        <input type="range" id="slRes" min="3" max="15" step="1" value="5">
+                    </div>
+                </div>
+            </details>
+
+            <details open>
+                <summary>Engine & Timeline</summary>
+                <div class="details-content">
+                    <select id="selMode">
+                        <option value="static">Static Render</option>
+                        <option value="anim_decode">Anim: Decode (Chaos ➞ Order)</option>
+                        <option value="anim_zoom">Anim: Zoom In</option>
+                    </select>
+                    
+                    <div>
+                        <label>Duration <span id="valDuration">3.0s</span></label>
+                        <input type="range" id="slDuration" min="3" max="10" step="0.5" value="3.0">
+                    </div>
+
+                    <div class="flex-row">
+                        <button class="btn btn-primary" id="btnRiavvia">PLAY</button>
+                        <button class="btn btn-danger" id="btnBlocca" style="flex: 0.4;">PAUSE</button>
+                    </div>
+                    
+                    <div class="timeline-box">
+                        <label>Timeline <span id="valTimeline">100%</span></label>
+                        <input type="range" id="timelineSlider" min="0" max="1" step="0.01" value="1">
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="flex-row">
+                <button class="btn btn-primary" id="btnSavePNG">EXPORT PNG</button>
+                <button class="btn btn-primary" id="btnSaveSVG">EXPORT SVG</button>
+            </div>
+            <button class="btn btn-primary" id="btnSaveVideo">RECORD WEBM</button>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <div id="canvas-container"></div>
+    </div>
+
+    <script>
+        let img = null;
+        let originalFileName = "Artwork"; 
+        let customFontObj = null; 
+        let density = "█▓▒░Ñ@#W$9876543210?!abc;:+=-,._  "; 
+        
+        let targetResolution = 5;   
+        let contrast = 0.43;        
+        let brightnessBoost = 1.4;  
+        let useRandom = false;
+        
+        let isAnimating = false;
+        let renderMode = 'static'; 
+        let animProgress = 1.0; 
+        let animDuration = 3.0; 
+        
+        let chunks = [];
+        let recorder;
+        let isRecording = false;
+        let cancelVideo = false; 
+        let holdFrames = 60; 
+
+        const slContrasto = document.getElementById('slContrasto');
+        const slLuce = document.getElementById('slLuce');
+        const slRes = document.getElementById('slRes');
+        const slDuration = document.getElementById('slDuration');
+        const imageUpload = document.getElementById('imageUpload');
+        const btnRimuovi = document.getElementById('btnRimuovi');
+        const btnBlocca = document.getElementById('btnBlocca');
+        const selFont = document.getElementById('selFont');
+        const selWeight = document.getElementById('selWeight');
+        const fontUpload = document.getElementById('fontUpload');
+        const selCharset = document.getElementById('selCharset');
+        const customCharset = document.getElementById('customCharset');
+        const chkRandom = document.getElementById('chkRandom');
+        const selMode = document.getElementById('selMode');
+        const timelineSlider = document.getElementById('timelineSlider');
+        const valTimeline = document.getElementById('valTimeline');
+        const btnSaveVideo = document.getElementById('btnSaveVideo');
+
+        function setup() {
+            let canvas = createCanvas(400, 300);
+            canvas.parent('canvas-container');
+            resetSchermoDiBenvenuto();
+
+            imageUpload.addEventListener('change', handleImageUpload);
+            btnRimuovi.addEventListener('click', gestisciRimozioneImmagine);
+            btnBlocca.addEventListener('click', gestisciBlocco);
+
+            selFont.addEventListener('change', () => { fontUpload.style.display = (selFont.value === 'CUSTOM') ? 'block' : 'none'; });
+            fontUpload.addEventListener('change', handleFontUpload);
+            selCharset.addEventListener('change', () => { customCharset.style.display = (selCharset.value === 'CUSTOM') ? 'block' : 'none'; });
+
+            slContrasto.oninput = () => document.getElementById('valContrasto').innerText = slContrasto.value;
+            slLuce.oninput = () => document.getElementById('valLuce').innerText = slLuce.value;
+            slRes.oninput = () => document.getElementById('valRes').innerText = slRes.value + 'px';
+            slDuration.oninput = () => document.getElementById('valDuration').innerText = slDuration.value + 's';
+
+            document.getElementById('btnRiavvia').addEventListener('click', () => avviaGenerazione(false));
+            btnSaveVideo.addEventListener('click', () => {
+                if(selMode.value === 'static') { alert("Select an Animation mode to record."); return; }
+                avviaGenerazione(true);
+            });
+            document.getElementById('btnSavePNG').addEventListener('click', () => { if(img) saveCanvas('ASCII_' + originalFileName, 'png'); });
+            document.getElementById('btnSaveSVG').addEventListener('click', esportaSVG);
+
+            timelineSlider.addEventListener('input', (e) => {
+                if (!img) return;
+                isAnimating = false; 
+                if(isRecording) gestisciBlocco(); 
+                animProgress = parseFloat(e.target.value);
+                valTimeline.innerText = Math.round(animProgress * 100) + '%';
+                redraw(); 
+            });
+        }
+
+        function resetSchermoDiBenvenuto() {
+            clear(); background(20); fill(150); textAlign(CENTER, CENTER); 
+            textFont('Roboto, sans-serif'); textStyle(NORMAL); textSize(12);
+            text("NO SOURCE IMAGE", width/2, height/2);
+            noLoop();
+        }
+
+        function handleImageUpload(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            originalFileName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            btnRimuovi.style.display = 'block';
+
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                loadImage(event.target.result, (loadedImg) => {
+                    img = loadedImg;
+                    let maxDim = 1200; 
+                    if (img.width > maxDim || img.height > maxDim) {
+                        if (img.width > img.height) img.resize(maxDim, 0); else img.resize(0, maxDim);
+                    }
+                    resizeCanvas(img.width, img.height);
+                    pixelDensity(1);
+                    avviaGenerazione(false);
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function gestisciRimozioneImmagine() {
+            img = null; originalFileName = "Artwork"; imageUpload.value = ''; 
+            btnRimuovi.style.display = 'none'; gestisciBlocco(); resetSchermoDiBenvenuto();
+        }
+
+        function gestisciBlocco() {
+            isAnimating = false; noLoop();
+            if (isRecording) {
+                cancelVideo = true; recorder.stop(); isRecording = false;
+                btnSaveVideo.innerText = "RECORD WEBM";
+                btnSaveVideo.style.backgroundColor = "transparent";
+                btnSaveVideo.style.color = "var(--text-main)";
+            }
+            valTimeline.innerText = Math.round(animProgress * 100) + "% (PAUSED)";
+        }
+
+        function handleFontUpload(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            let url = URL.createObjectURL(file);
+            loadFont(url, (f) => { customFontObj = f; alert("Custom font ready."); });
+        }
+
+        function avviaGenerazione(registraVideo) {
+            if (!img) { alert("Load an image first."); return; }
+            
+            density = (selCharset.value === 'CUSTOM') ? (customCharset.value.split("").reverse().join("") || " ") : selCharset.value;
+            useRandom = chkRandom.checked;
+            contrast = parseFloat(slContrasto.value);
+            brightnessBoost = parseFloat(slLuce.value);
+            targetResolution = parseInt(slRes.value);
+            animDuration = parseFloat(slDuration.value);
+            renderMode = selMode.value;
+
+            img.loadPixels();
+            
+            if (selFont.value === 'CUSTOM' && customFontObj) textFont(customFontObj);
+            else textFont(selFont.value !== 'CUSTOM' ? selFont.value : 'Impact');
+            
+            textStyle((selWeight.value === 'BOLD') ? BOLD : NORMAL);
+
+            if (renderMode === 'static') {
+                animProgress = 1.0; timelineSlider.value = 1.0; valTimeline.innerText = "100%";
+                isAnimating = false; redraw(); return;
+            } 
+            
+            animProgress = 0.0; timelineSlider.value = 0.0; valTimeline.innerText = "0%";
+            holdFrames = 60; isAnimating = true;
+
+            if (registraVideo) {
+                cancelVideo = false; chunks = [];
+                let stream = document.querySelector('canvas').captureStream(24);
+                recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+                recorder.onstop = salvaFileVideo;
+                recorder.start(); isRecording = true;
+                
+                btnSaveVideo.innerText = "RECORDING... (PAUSE TO CANCEL)";
+                btnSaveVideo.style.backgroundColor = "#dddddd";
+                btnSaveVideo.style.color = "#111111";
+                btnSaveVideo.style.borderColor = "#dddddd";
+            }
+
+            frameRate(24); loop(); 
+        }
+
+        function draw() {
+            if (!img) return;
+            background(0); noStroke(); textAlign(CENTER, CENTER);
+            
+            let currentRes = targetResolution;
+            if (renderMode === 'anim_zoom' && animProgress < 1.0) {
+                let maxRes = max(img.width, img.height) * 1.2;
+                currentRes = map(pow(animProgress, 0.5), 0, 1, maxRes, targetResolution);
+            } else if (renderMode === 'anim_zoom' && animProgress >= 1.0) {
+                currentRes = targetResolution;
+            }
+            textSize(currentRes);
+
+            let cols = ceil(img.width / currentRes); let rows = ceil(img.height / currentRes);
+            let offsetX = (img.width - (cols * currentRes)) / 2; let offsetY = (img.height - (rows * currentRes)) / 2;
+            
+            if(useRandom) randomSeed(99); 
+            let decodeEase = (renderMode === 'anim_decode') ? (animProgress * animProgress * (3.0 - 2.0 * animProgress)) : 1.0;
+            let chaosAmount = 1.0 - decodeEase;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let posX = offsetX + c * currentRes + currentRes / 2;
+                    let posY = offsetY + r * currentRes + currentRes / 2;
+                    let pixelX = floor(constrain(posX, 0, img.width - 1));
+                    let pixelY = floor(constrain(posY, 0, img.height - 1));
+                    const index = (pixelX + pixelY * img.width) * 4;
+                    
+                    let targetR = constrain(img.pixels[index + 0] * brightnessBoost, 0, 255);
+                    let targetG = constrain(img.pixels[index + 1] * brightnessBoost, 0, 255);
+                    let targetB = constrain(img.pixels[index + 2] * brightnessBoost, 0, 255);
+                    
+                    let charToDraw; let finalR = targetR, finalG = targetG, finalB = targetB;
+                    let targetCharIndex;
+                    
+                    if (useRandom) targetCharIndex = floor(random(density.length));
+                    else {
+                        let avg = (targetR + targetG + targetB) / 3.0;
+                        let adjAvg = constrain(((avg / 255.0) - 0.5) * contrast + 0.5, 0, 1);
+                        targetCharIndex = floor(map(adjAvg * 255.0, 0, 255, density.length - 1, 0));
+                    }
+
+                    if (renderMode === 'anim_decode') {
+                        if (chaosAmount > 0) {
+                            let noiseColor = random(50, 200);
+                            finalR = lerp(noiseColor, targetR, decodeEase);
+                            finalG = lerp(noiseColor, targetG, decodeEase);
+                            finalB = lerp(noiseColor, targetB, decodeEase);
+                        }
+                        let range = floor(chaosAmount * density.length);
+                        let displayCharIndex = targetCharIndex;
+                        if (range > 0) {
+                            displayCharIndex = targetCharIndex + floor(random(-range, range + 1));
+                            displayCharIndex = (displayCharIndex + density.length) % density.length; 
+                        }
+                        charToDraw = density.charAt(displayCharIndex);
+                    } else charToDraw = density.charAt(targetCharIndex);
+                    
+                    fill(finalR, finalG, finalB); text(charToDraw, posX, posY);
+                }
+            }
+            
+            if (isAnimating) {
+                animProgress += (1.0 / (animDuration * 24.0)); 
+                if (animProgress >= 1.0) {
+                    animProgress = 1.0;
+                    if (isRecording) {
+                        if (holdFrames > 0) holdFrames--;
+                        else {
+                            recorder.stop(); isRecording = false; isAnimating = false; 
+                            btnSaveVideo.innerText = "RECORD WEBM";
+                            btnSaveVideo.style.backgroundColor = "transparent";
+                            btnSaveVideo.style.color = "var(--text-main)";
+                            btnSaveVideo.style.borderColor = "var(--border-light)";
+                        }
+                    } else { isAnimating = false; noLoop(); }
+                }
+                timelineSlider.value = animProgress; valTimeline.innerText = Math.round(animProgress * 100) + '%';
+            }
+        }
+
+        function salvaFileVideo() {
+            if (cancelVideo) { chunks = []; return; }
+            let blob = new Blob(chunks, { type: 'video/webm' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a'); a.href = url; a.download = 'ASCII_' + originalFileName + '.webm'; 
+            a.click(); window.URL.revokeObjectURL(url);
+        }
+
+        function esportaSVG() {
+            if (!img) { alert("Load an image first."); return; }
+            if (isAnimating) { alert("Pause or wait for the animation to end."); return; }
+            
+            let currentRes = targetResolution;
+            if (renderMode === 'anim_zoom' && animProgress < 1.0) {
+                let maxRes = max(img.width, img.height) * 1.2;
+                currentRes = map(pow(animProgress, 0.5), 0, 1, maxRes, targetResolution);
+            } else if (renderMode === 'anim_zoom' && animProgress >= 1.0) currentRes = targetResolution;
+
+            let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="background-color: black;">\n`;
+            let cols = ceil(img.width / currentRes); let rows = ceil(img.height / currentRes);
+            let offsetX = (img.width - (cols * currentRes)) / 2; let offsetY = (img.height - (rows * currentRes)) / 2;
+            let decodeEase = (renderMode === 'anim_decode') ? (animProgress * animProgress * (3.0 - 2.0 * animProgress)) : 1.0;
+            let chaosAmount = 1.0 - decodeEase;
+
+            let fontNameStr = (selFont.value === 'CUSTOM' && customFontObj) ? "CustomFont" : selFont.value;
+            let fontWeightStr = (selWeight.value === 'BOLD') ? "bold" : "normal";
+
+            if(useRandom) randomSeed(99);
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let posX = offsetX + c * currentRes + currentRes / 2; let posY = offsetY + r * currentRes + currentRes / 2;
+                    let pixelX = floor(constrain(posX, 0, img.width - 1)); let pixelY = floor(constrain(posY, 0, img.height - 1));
+                    const index = (pixelX + pixelY * img.width) * 4;
+                    
+                    let targetR = constrain(img.pixels[index+0] * brightnessBoost, 0, 255);
+                    let targetG = constrain(img.pixels[index+1] * brightnessBoost, 0, 255);
+                    let targetB = constrain(img.pixels[index+2] * brightnessBoost, 0, 255);
+                    
+                    let charToDraw; let finalR = targetR, finalG = targetG, finalB = targetB;
+                    let targetCharIndex;
+                    if (useRandom) targetCharIndex = floor(random(density.length));
+                    else {
+                        let avg = (targetR + targetG + targetB) / 3.0;
+                        let adjAvg = constrain(((avg / 255.0) - 0.5) * contrast + 0.5, 0, 1);
+                        targetCharIndex = floor(map(adjAvg * 255.0, 0, 255, density.length - 1, 0));
+                    }
+
+                    if (renderMode === 'anim_decode') {
+                        if (chaosAmount > 0) {
+                            let noiseColor = random(50, 200);
+                            finalR = lerp(noiseColor, targetR, decodeEase); finalG = lerp(noiseColor, targetG, decodeEase); finalB = lerp(noiseColor, targetB, decodeEase);
+                        }
+                        let range = floor(chaosAmount * density.length); let displayCharIndex = targetCharIndex;
+                        if (range > 0) { displayCharIndex = targetCharIndex + floor(random(-range, range + 1)); displayCharIndex = (displayCharIndex + density.length) % density.length; }
+                        charToDraw = density.charAt(displayCharIndex);
+                    } else charToDraw = density.charAt(targetCharIndex);
+                    
+                    if(charToDraw==='<') charToDraw='&lt;'; if(charToDraw==='>') charToDraw='&gt;'; if(charToDraw==='&') charToDraw='&amp;';
+                    svgContent += `  <text x="${posX}" y="${posY}" font-family="${fontNameStr}" font-weight="${fontWeightStr}" font-size="${currentRes}px" fill="rgb(${floor(finalR)},${floor(finalG)},${floor(finalB)})" text-anchor="middle" dominant-baseline="central">${charToDraw}</text>\n`;
+                }
+            }
+            svgContent += `</svg>`;
+            let blob = new Blob([svgContent], {type: "image/svg+xml;charset=utf-8"}); let url = URL.createObjectURL(blob);
+            let a = document.createElement("a"); a.href = url; a.download = 'ASCII_' + originalFileName + '.svg'; 
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
